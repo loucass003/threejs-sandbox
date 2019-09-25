@@ -126,22 +126,28 @@ async function init() {
 	ellipsoidmesh.position.set(0, 300, 0);
 
 	const velocity = new Vector3(0, 0, 0);
-	var xSpeed = 2;
-	var ySpeed = 2;
-
-	document.addEventListener("keydown", onDocumentKeyDown, false);
-	function onDocumentKeyDown(event) {
-		var keyCode = event.which;
-		if (keyCode == 87) {
-			velocity.y += ySpeed;
-		} else if (keyCode == 83) {
-			velocity.y -= ySpeed;
-		} else if (keyCode == 65) {
-			velocity.x -= xSpeed;
-		} else if (keyCode == 68) {
-			velocity.x += xSpeed;
-		} else if (keyCode == 32) {
-			velocity.set(0, 0, 0);
+	document.onkeydown = function(e) {
+		console.log(e);
+		e.preventDefault();
+		switch (e.key) {
+			case 'a':
+					velocity.x += 2;
+				break;
+			case 's':
+				velocity.z -= 2;
+				break;
+			case 'd':
+				velocity.x -= 2;
+				break;
+			case 'w':
+				velocity.z += 2;
+				break;
+			case ' ':
+				velocity.y += 10;
+				break;
+			case 'Shift':
+				velocity.y -= 2;
+				break;
 		}
 	};
 
