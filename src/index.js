@@ -2,25 +2,44 @@ import * as THREE from "three";
 import {MTLLoader, OBJLoader} from 'three-obj-mtl-loader'
 import { Vec3, CollisionPacket, Response } from "./test";
 import OrbitControls from 'three-orbitcontrols';
-import { Vector3 } from "three";
+import { Vector3, Euler } from "three";
+
+import { Vector3 as V3 } from "math-ds";
+import { PointOctree } from "sparse-octree";
+import OctreeHelper from "octree-helper";
+
 
 async function init() {
 	const scene = new THREE.Scene();
 	const camera = new THREE.PerspectiveCamera(
-	60,
-	window.innerWidth / window.innerHeight,
-	1,
-	10000
+		60,
+		window.innerWidth / window.innerHeight,
+		1,
+		1000
+	);
+
+	const camera_test = new THREE.PerspectiveCamera(
+		60,
+		window.innerWidth / window.innerHeight,
+		1,
+		100
 	);
 
 	const renderer = new THREE.WebGLRenderer();
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(renderer.domElement);
 	const controls = new OrbitControls(camera, renderer.domElement);
+	const renderer2 = new THREE.WebGLRenderer();
+	renderer2.setSize(window.innerWidth, window.innerHeight);
+	//document.body.appendChild(renderer2.domElement);
 
-	camera.position.z = -15;
-	camera.position.x = 300;
-	camera.rotation.y = -91;
+	camera.position.z = -5;
+	camera.position.x = 0;
+	camera.rotation.y = 0;
+
+	camera_test.position.z = 5;
+	camera_test.position.x = 0;
+	camera_test.rotation.y = 0;
 
 	const axesHelper = new THREE.AxesHelper(1);
 	scene.add(axesHelper);
@@ -28,176 +47,108 @@ async function init() {
 	var light = new THREE.AmbientLight(0x404040); // soft white light
 	scene.add(light);
 
-	// let pointLight = new THREE.PointLight(0xffffff, 1);
-	// camera.add(pointLight);
+	var helper = new THREE.CameraHelper( camera_test );
+	scene.add( helper );
 
-	// manager.addHandler(/\.tga$/i, new TGALoader());
-	const obj = await new Promise((resolve, reject) => {
+	var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+	var material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+	var cube = new THREE.Mesh( geometry, material );
+	scene.add( cube );
 
-
-	var mtlLoader = new MTLLoader();
-	var loader = new OBJLoader();
-	// mtlLoader.set("de_dust/");
-	mtlLoader.setPath('de_dust/');
-		mtlLoader.load(
-		"de_dust2.mtl",
-		function(materials) {
-			loader.setMaterials(materials);
-			loader.load(
-			// resource URL
-			"de_dust/de_dust2.obj",
-			// called when resource is loaded
-			function(object) {
-				scene.add(object);
-				resolve(object);
-				//console.log("loaded", object);
-			},
-			// called when loading is in progresses
-			function(xhr) {
-				console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
-			},
-			// called when loading has errors
-			function(error) {
-				console.log("An error happened");
-			}
-			);
-		},
-		function(xhr) {
-			console.log((xhr.loaded / xhr.total) * 100 + "MTL % loaded");
-		},
-		// called when loading has errors
-		function(error) {
-			console.log("An error happened");
-		}
-		);
-
-	});
-
-
-	function ellipsoid(latitudeBands, longitudeBands, a, b, c, size = 1) 
-	{
-		const ellipsoidgeometry = new THREE.Geometry();
-		for (var latNumber=0; latNumber <= latitudeBands; latNumber++)
-			{
-				var theta = (latNumber *      Math.PI *2/ latitudeBands);
-				var sinTheta = Math.sin(theta);
-				var cosTheta = Math.cos(theta);
-			
-				for (var longNumber=0; longNumber <= longitudeBands; longNumber++)
-				{
-					var phi = (longNumber  *2* Math.PI / longitudeBands);
-					var sinPhi = Math.sin(phi);
-					var cosPhi = Math.cos(phi);
-				
-
-					var x = a*cosPhi * cosTheta ;
-					var y = b*cosTheta*sinPhi;
-					var z = c*sinTheta;
-					ellipsoidgeometry.vertices.push(new THREE.Vector3( x*size,y*size,z*size));
-				
-				}
-		
 	
-		}
-		for (var latNumber = 0; latNumber < latitudeBands; latNumber++) 
-		{
-		for (var longNumber = 0; longNumber < longitudeBands; longNumber++) 
-		{
-			var first = (latNumber * (longitudeBands + 1)) + longNumber;
-			var second = first + longitudeBands + 1;
-			ellipsoidgeometry.faces.push(new THREE.Face3(first,second,first+1));
-		
+	/*
 
-			ellipsoidgeometry.faces.push(new THREE.Face3(second,second+1,first+1));
-		
+	int8_t		aabb_vs_frustrum(t_collide_aabb aabb, t_vec4 planes[6])
+	{
+		int		i;
+		int8_t	result;
+		t_vec4	plane;
+		t_vec3	pv;
+		t_vec3	nv;
+
+		result = 1;
+		i = -1;
+		while (++i < 6)
+		{
+			plane = planes[i];
+			pv = (t_vec3){
+				.x = plane.x > 0 ? aabb.max.x : aabb.min.x,
+				.y = plane.y > 0 ? aabb.max.y : aabb.min.y,
+				.z = plane.z > 0 ? aabb.max.z : aabb.min.z,
+			};
+
+			nv = (t_vec3){
+				.x = plane.x < 0 ? aabb.max.x : aabb.min.x,
+				.y = plane.y < 0 ? aabb.max.y : aabb.min.y,
+				.z = plane.z < 0 ? aabb.max.z : aabb.min.z,
+			};
+
+			if (ft_vec4_dot(vec3_to_4(pv), plane) < 0)
+				return (-1);
+			if (ft_vec4_dot(vec3_to_4(nv), plane) < 0)
+				result = 0;
+		}
+		return result;
+	}
+
+	*/
+
+	function aabb_vs_frustrum(frustum, box)
+	{
+		var p1 = new Vector3(),
+		p2 = new Vector3();
+
+
+		console.log(frustum.planes.map(v => v.constant));
+		for (let i = 0; i < 6; i++)
+		{
+			var plane = frustum.planes[ i ];
+
+			p1.x = plane.normal.x > 0 ? box.min.x : box.max.x;
+			p2.x = plane.normal.x > 0 ? box.max.x : box.min.x;
+			p1.y = plane.normal.y > 0 ? box.min.y : box.max.y;
+			p2.y = plane.normal.y > 0 ? box.max.y : box.min.y;
+			p1.z = plane.normal.z > 0 ? box.min.z : box.max.z;
+			p2.z = plane.normal.z > 0 ? box.max.z : box.min.z;
+
+			var d1 = plane.distanceToPoint( p1 );
+			var d2 = plane.distanceToPoint( p2 );
+
+			// if both outside plane, no intersection
+
+			if ( d1 < 0 && d2 < 0 ) {
+
+				return false;
+
 			}
 		}
-		return ellipsoidgeometry;
+		return (true);
 	}
 
-	const ellipsoidgeometry = ellipsoid(30, 30, 20, 40, 20)
 
-	var redmaterial =  new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
-	const ellipsoidmesh = new THREE.Mesh(ellipsoidgeometry,redmaterial);
-	const axesHelper2 = new THREE.AxesHelper(1);
-	ellipsoidmesh.add(axesHelper2);
-	scene.add(ellipsoidmesh);
-
-	ellipsoidmesh.position.set(0, 300, 0);
-
-	const velocity = new Vector3(0, 0, 0);
-	document.onkeydown = function(e) {
-		console.log(e);
-		e.preventDefault();
-		switch (e.key) {
-			case 'a':
-					velocity.x += 2;
-				break;
-			case 's':
-				velocity.z -= 2;
-				break;
-			case 'd':
-				velocity.x -= 2;
-				break;
-			case 'w':
-				velocity.z += 2;
-				break;
-			case ' ':
-				velocity.y += 10;
-				break;
-			case 'Shift':
-				velocity.y -= 2;
-				break;
-		}
-	};
-
-
-	controls.zoomSpeed = 5;
-//	console.log(obj.geometry);
-
-	const geometry = new THREE.Geometry().fromBufferGeometry(obj.children[0].geometry);
-	//console.log(geometry);
-	const faces = geometry.faces.map((face) => { 
-		const a = geometry.vertices[face.a];
-		const b = geometry.vertices[face.b];
-		const c = geometry.vertices[face.c];
-		return [
-			Vec3._new(a.x, a.y, a.z),
-			Vec3._new(b.x, b.y, b.z),
-			Vec3._new(c.x, c.y, c.z)
-		]
-	});
-
-	function triangles() {
-		return faces;
-	}
-
-	function vec3_to_Vector3(vec3)
-	{
-		return new THREE.Vector3().set(vec3[0], vec3[1],vec3[2])
-	}
-
-	function Vector3_to_vec3(vector3)
-	{
-		return new Vec3._new(vector3.x,vector3.y, vector3.z)
-	}
 
 	animate();
-
+	
 	function animate() {
+		camera_test.rotation.y += 0.01;
+		
+		const test = new THREE.Matrix4().multiplyMatrices(
+			new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-camera_test.rotation.x, -camera_test.rotation.y, -camera_test.rotation.z)),
+			new THREE.Matrix4().makeTranslation(-camera_test.position.x, -camera_test.position.y, -camera_test.position.z)
+		)
+		const frustum = new THREE.Frustum().setFromMatrix(new THREE.Matrix4().multiplyMatrices( camera_test.projectionMatrix, test));
+		const val = aabb_vs_frustrum(frustum, { min: new THREE.Vector3(-0.5, -0.5, -0.5), max: new THREE.Vector3(0.5, 0.5, 0.5) });
+		console.log(val);
+		if(val){
+			cube.material.color.setHex( 0xffffff );
+		}
+		else
+			cube.material.color.setHex( 0xff0000 );
 		controls.update();
 		renderer.render(scene, camera);
-		velocity.y -= 1;
-		velocity.multiplyScalar(0.8);
-		const packet = new CollisionPacket(Vector3_to_vec3(ellipsoidmesh.position), Vector3_to_vec3(velocity), new Vec3._new(20, 40, 20));
-	//	console.log(packet)
-		const response = new Response(triangles);
-		response.update(packet);
-	//	console.log(packet.r3_position);
-		ellipsoidmesh.position.copy(vec3_to_Vector3(packet.r3_position));
-		//ellipsoidmesh.position.set(packet.r3_position.x, packet.r3_position.y, packet.r3_position.z);
-	//	console.log(camera)
+		renderer2.render(scene, camera_test);
 		requestAnimationFrame(animate);
+		
 	}
 }
 

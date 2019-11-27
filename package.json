@@ -11,9 +11,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "iterator-result": "0.0.3",
+    "math-ds": "^1.1.3",
+    "octree-helper": "^0.24.0",
+    "sparse-octree": "^5.2.1",
     "three": "^0.108.0",
     "three-obj-mtl-loader": "^1.0.3",
-    "three-orbitcontrols": "^2.108.1"
+    "three-orbitcontrols": "^2.108.1",
+    "yaot": "^1.1.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.6.2",
