@@ -1,10 +1,7 @@
 import * as THREE from "three";
-import {MTLLoader, OBJLoader} from 'three-obj-mtl-loader'
-import { Vec3, CollisionPacket, Response } from "./test";
 import OrbitControls from 'three-orbitcontrols';
 import { Vector3, Euler } from "three";
 
-import { Vector3 as V3 } from "math-ds";
 import { PointOctree } from "sparse-octree";
 import OctreeHelper from "octree-helper";
 
@@ -20,10 +17,11 @@ async function init() {
 
 	const camera_test = new THREE.PerspectiveCamera(
 		60,
-		window.innerWidth / window.innerHeight,
-		1,
-		100
+		1280 / 640,
+		0.5,
+		500
 	);
+
 
 	const renderer = new THREE.WebGLRenderer();
 	renderer.setSize(window.innerWidth, window.innerHeight);
@@ -50,9 +48,10 @@ async function init() {
 	var helper = new THREE.CameraHelper( camera_test );
 	scene.add( helper );
 
-	var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+	var geometry = new THREE.BoxGeometry( 10, 10, 10 );
 	var material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
 	var cube = new THREE.Mesh( geometry, material );
+	
 	scene.add( cube );
 
 	
@@ -95,11 +94,11 @@ async function init() {
 
 	function aabb_vs_frustrum(frustum, box)
 	{
-		var p1 = new Vector3(),
-		p2 = new Vector3();
+		var p1 = new THREE.Vector3(),
+		p2 = new THREE.Vector3();
 
 
-		console.log(frustum.planes.map(v => v.constant));
+		//console.log(frustum.planes.map(v => v.constant));
 		for (let i = 0; i < 6; i++)
 		{
 			var plane = frustum.planes[ i ];
@@ -125,20 +124,50 @@ async function init() {
 		return (true);
 	}
 
-
+	const velocity = new THREE.Vector3(0, 0, 0);
+	document.onkeydown = function(e) {
+		//console.log(e);
+		
+		switch (e.key) {
+			case 'a':
+				velocity.y += 2;
+				break;
+			case 's':
+				velocity.x -= 2;
+				break;
+			case 'd':
+				velocity.y -= 2;
+				break;
+			case 'w':
+				velocity.x += 2;
+				break;
+			default:
+				return;
+		}
+		e.preventDefault();
+		//console.log(velocity);
+	};
 
 	animate();
 	
-	function animate() {
-		camera_test.rotation.y += 0.01;
-		
+	let f = 0;
+
+	console.log(camera_test.projectionMatrix)
+
+	function animate(delta) {
+		camera_test.rotation.y = velocity.y * 0.01;
+		camera_test.rotation.x = velocity.x * 0.01;
+
+		//camera_test.updateMatrix();
+		cube.position.x = Math.sin(delta * 0.01) * 3;
+		cube.position.y = Math.cos(delta * 0.01) * 3
 		const test = new THREE.Matrix4().multiplyMatrices(
 			new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-camera_test.rotation.x, -camera_test.rotation.y, -camera_test.rotation.z)),
 			new THREE.Matrix4().makeTranslation(-camera_test.position.x, -camera_test.position.y, -camera_test.position.z)
 		)
 		const frustum = new THREE.Frustum().setFromMatrix(new THREE.Matrix4().multiplyMatrices( camera_test.projectionMatrix, test));
-		const val = aabb_vs_frustrum(frustum, { min: new THREE.Vector3(-0.5, -0.5, -0.5), max: new THREE.Vector3(0.5, 0.5, 0.5) });
-		console.log(val);
+		const val = aabb_vs_frustrum(frustum, { min: new THREE.Vector3(cube.position.x -5, cube.position.y - 5, cube.position.z - 5), max: new THREE.Vector3(cube.position.x + 5, cube.position.y + 5, cube.position.z + 5) });
+		//console.log(val);
 		if(val){
 			cube.material.color.setHex( 0xffffff );
 		}
