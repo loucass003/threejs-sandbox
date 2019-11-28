@@ -33,11 +33,11 @@ async function init() {
 
 	camera.position.z = -5;
 	camera.position.x = 0;
-	camera.rotation.y = 0;
+	camera.position.y = 0;
 
 	camera_test.position.z = 5;
 	camera_test.position.x = 0;
-	camera_test.rotation.y = 0;
+	camera_test.position.y = 0;
 
 	const axesHelper = new THREE.AxesHelper(1);
 	scene.add(axesHelper);
@@ -103,15 +103,17 @@ async function init() {
 		{
 			var plane = frustum.planes[ i ];
 
-			p1.x = plane.normal.x > 0 ? box.min.x : box.max.x;
-			p2.x = plane.normal.x > 0 ? box.max.x : box.min.x;
-			p1.y = plane.normal.y > 0 ? box.min.y : box.max.y;
-			p2.y = plane.normal.y > 0 ? box.max.y : box.min.y;
-			p1.z = plane.normal.z > 0 ? box.min.z : box.max.z;
-			p2.z = plane.normal.z > 0 ? box.max.z : box.min.z;
+			p1.x = -plane.normal.x > 0 ? box.min.x : box.max.x;
+			p2.x = -plane.normal.x > 0 ? box.max.x : box.min.x;
+			p1.y = -plane.normal.y > 0 ? box.min.y : box.max.y;
+			p2.y = -plane.normal.y > 0 ? box.max.y : box.min.y;
+			p1.z = -plane.normal.z > 0 ? box.min.z : box.max.z;
+			p2.z = -plane.normal.z > 0 ? box.max.z : box.min.z;
 
-			var d1 = plane.distanceToPoint( p1 );
-			var d2 = plane.distanceToPoint( p2 );
+			// var d1 = plane.distanceToPoint( p1 );
+			// var d2 = plane.distanceToPoint( p2 );
+			const d1 = p1.dot(plane.normal) + plane.constant;
+			const d2 = p2.dot(plane.normal) + plane.constant;
 
 			// if both outside plane, no intersection
 
@@ -151,9 +153,10 @@ async function init() {
 	animate();
 	
 	let f = 0;
-
+	camera_test.projectionMatrix.elements[10] *= -1;
+	camera_test.projectionMatrix.elements[14] *= -1;
 	console.log(camera_test.projectionMatrix)
-
+	console.log(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler((Math.PI / 2), -(Math.PI / 2), -camera_test.rotation.z)).elements.map(e => e.toFixed(6)));
 	function animate(delta) {
 		camera_test.rotation.y = velocity.y * 0.01;
 		camera_test.rotation.x = velocity.x * 0.01;
@@ -165,7 +168,11 @@ async function init() {
 			new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-camera_test.rotation.x, -camera_test.rotation.y, -camera_test.rotation.z)),
 			new THREE.Matrix4().makeTranslation(-camera_test.position.x, -camera_test.position.y, -camera_test.position.z)
 		)
+//	test.elements[10] *= -1;
+	//	console.log( camera_test.projectionMatrix,  new THREE.Matrix4().multiplyMatrices( camera_test.projectionMatrix, test));
+		
 		const frustum = new THREE.Frustum().setFromMatrix(new THREE.Matrix4().multiplyMatrices( camera_test.projectionMatrix, test));
+		console.log(frustum);
 		const val = aabb_vs_frustrum(frustum, { min: new THREE.Vector3(cube.position.x -5, cube.position.y - 5, cube.position.z - 5), max: new THREE.Vector3(cube.position.x + 5, cube.position.y + 5, cube.position.z + 5) });
 		//console.log(val);
 		if(val){
